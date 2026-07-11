@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>足球游戏 - 5v5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1100px;
+            height: 700px;
+            background: linear-gradient(180deg, #2d8b2d 0%, #3a9a3a 30%, #2d8b2d 60%, #3a9a3a 100%);
+            border-radius: 16px;
+            box-shadow: 0 0 60px rgba(0, 180, 0, 0.3), 0 0 120px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 3px solid #fff;
+        }
+
+        /* 球场标记 */
+        .field-line {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .field-border {
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .field-center {
+            top: 50%;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+            border: none;
+            transform: translateY(-50%);
+        }
+
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 160px;
+            height: 160px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .penalty-area-left {
+            position: absolute;
+            top: 20%;
+            left: 20px;
+            width: 160px;
+            height: 60%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .penalty-area-right {
+            position: absolute;
+            top: 20%;
+            right: 20px;
+            width: 160px;
+            height: 60%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+        }
+
+        .goal-left {
+            position: absolute;
+            top: 42%;
+            left: 12px;
+            width: 18px;
+            height: 16%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .goal-right {
+            position: absolute;
+            top: 42%;
+            right: 12px;
+            width: 18px;
+            height: 16%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 6px 0 0 6px;
+        }
+
+        /* 球员 */
+        .player {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            border: 3px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .player:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            z-index: 30;
+        }
+
+        .player.team-a {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-color: #ff6b6b;
+        }
+
+        .player.team-b {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-color: #6bb5ff;
+        }
+
+        .player.selected {
+            box-shadow: 0 0 25px rgba(255, 255, 0, 0.9);
+            border-color: #ffff00;
+            transform: scale(1.2);
+            animation: pulse 0.8s infinite;
+            z-index: 25;
+        }
+
+        .player.goalkeeper {
+            width: 40px;
+            height: 40px;
+            font-size: 11px;
+            border-width: 4px;
+        }
+
+        .player.running {
+            animation: runAnim 0.3s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 25px rgba(255, 255, 0, 0.9);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(255, 255, 0, 1.2);
+            }
+        }
+
+        @keyframes runAnim {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.3);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* 技能按钮容器 */
+        .skill-buttons {
+            position: absolute;
+            display: flex;
+            gap: 4px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .skill-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #fff;
+            font-weight: bold;
+            pointer-events: all;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .skill-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+        }
+
+        .skill-btn.run-btn {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .skill-btn.tackle-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .skill-btn.hook-btn {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            z-index: 50;
+        }
+
+        .score {
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .team-a-score {
+            border: 2px solid #e74c3c;
+        }
+
+        .team-b-score {
+            border: 2px solid #3498db;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 50;
+        }
+
+        .control-btn {
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            color: #fff;
+            transition: all 0.3s;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        #start-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        #reset-btn {
+            background: linear-gradient(135deg, #7f8c8d, #95a5a6);
+        }
+
+        #switch-btn {
+            background: linear-gradient(135deg, #f39c12, #f1c40f);
+        }
+
+        #possession-indicator {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 6px 18px;
+            border-radius: 15px;
+            font-size: 13px;
+            z-index: 50;
+            letter-spacing: 1px;
+        }
+
+        /* 足球 */
+        #ball {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: radial-gradient(circle at 35% 35%, #fff, #ddd, #888);
+            border-radius: 50%;
+            z-index: 15;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            transition: left 0.4s ease-out, top 0.4s ease-out;
+        }
+
+        /* 消息 */
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            z-index: 60;
+            pointer-events: none;
+            animation: fadeUp 1.5s forwards;
+        }
+
+        @keyframes fadeUp {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -80%) scale(1.3);
+            }
+        }
+
+        .field-label {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 40px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 球场 -->
+        <div class="field-line field-border"></div>
+        <div class="field-line field-center"></div>
+        <div class="center-circle"></div>
+        <div class="center-dot"></div>
+        <div class="penalty-area-left"></div>
+        <div class="penalty-area-right"></div>
+        <div class="goal-left"></div>
+        <div class="goal-right"></div>
+        <div class="field-label" style="top:15%;left:50%;transform:translateX(-50%) rotate(180deg);">⚽</div>
+        <div class="field-label" style="bottom:15%;left:50%;transform:translateX(-50%);">⚽</div>
+
+        <!-- 足球 -->
+        <div id="ball"></div>
+
+        <!-- HUD -->
+        <div id="hud">
+            <div class="score team-a-score">🔴 <span id="score-a">0</span></div>
+            <div style="color:#fff;font-size:20px;line-height:2;">VS</div>
+            <div class="score team-b-score">🔵 <span id="score-b">0</span></div>
+        </div>
+
+        <div id="possession-indicator">⏸️ 等待开始</div>
+
+        <!-- 控制按钮 -->
+        <div id="controls">
+            <button class="control-btn" id="start-btn">▶ 开始比赛</button>
+            <button class="control-btn" id="switch-btn">🔄 切换攻防</button>
+            <button class="control-btn" id="reset-btn">🔄 重新开始</button>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== 游戏状态 ====================
+            const container = document.getElementById('game-container');
+            const ball = document.getElementById('ball');
+            const scoreAEl = document.getElementById('score-a');
+            const scoreBEl = document.getElementById('score-b');
+            const possessionEl = document.getElementById('possession-indicator');
+            const messageEl = document.getElementById('message');
+
+            const FIELD = {
+                x: 20,
+                y: 20,
+                width: 1060,
+                height: 660
+            };
+
+            let gameRunning = false;
+            let scoreA = 0;
+            let scoreB = 0;
+            let possession = 'a'; // 'a' 或 'b' — 球权
+            let isAttacking = true; // 当前是进攻还是防守
+            let selectedPlayer = null;
+            let players = [];
+            let playerElements = [];
+            let skillButtonContainers = [];
+
+            // ==================== 球员数据 ====================
+            function createPlayers() {
+                players = [];
+                // 清除旧元素
+                document.querySelectorAll('.player, .skill-buttons').forEach(el => el.remove());
+                playerElements = [];
+                skillButtonContainers = [];
+
+                // A队 (左侧，红色) — 守门员 + 4名球员
+                const teamAData = [
+                    { id: 'a-gk', team: 'a', role: 'goalkeeper', x: 80, y: FIELD.y + FIELD.height / 2, label: 'A-守' },
+                    { id: 'a-1', team: 'a', role: 'runner', x: 200, y: FIELD.y + FIELD.height * 0.35, label: 'A1-跑' },
+                    { id: 'a-2', team: 'a', role: 'hook', x: 200, y: FIELD.y + FIELD.height * 0.5, label: 'A2-勾' },
+                    { id: 'a-3', team: 'a', role: 'runner', x: 200, y: FIELD.y + FIELD.height * 0.65, label: 'A3-跑' },
+                    { id: 'a-4', team: 'a', role: 'hook', x: 280, y: FIELD.y + FIELD.height * 0.5, label: 'A4-勾' },
+                ];
+
+                // B队 (右侧，蓝色) — 守门员 + 4名球员
+                const teamBData = [
+                    { id: 'b-gk', team: 'b', role: 'goalkeeper', x: FIELD.x + FIELD.width - 80, y: FIELD.y + FIELD.height / 2, label: 'B-守' },
+                    { id: 'b-1', team: 'b', role: 'runner', x: FIELD.x + FIELD.width - 200, y: FIELD.y + FIELD.height * 0.35, label: 'B1-跑' },
+                    { id: 'b-2', team: 'b', role: 'hook', x: FIELD.x + FIELD.width - 200, y: FIELD.y + FIELD.height * 0.5, label: 'B2-勾' },
+                    { id: 'b-3', team: 'b', role: 'runner', x: FIELD.x + FIELD.width - 200, y: FIELD.y + FIELD.height * 0.65, label: 'B3-跑' },
+                    { id: 'b-4', team: 'b', role: 'hook', x: FIELD.x + FIELD.width - 280, y: FIELD.y + FIELD.height * 0.5, label: 'B4-勾' },
+                ];
+
+                [...teamAData, ...teamBData].forEach(data => {
+                    const player = createPlayerElement(data);
+                    players.push(player);
+                });
+
+                updateFormation();
+            }
+
+            function createPlayerElement(data) {
+                const el = document.createElement('div');
+                el.className = `player team-${data.team} ${data.role === 'goalkeeper' ? 'goalkeeper' : ''}`;
+                el.id = data.id;
+                el.style.left = data.x + 'px';
+                el.style.top = data.y + 'px';
+                el.textContent = data.label;
+                el.title = data.label;
+
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectPlayer(data.id);
+                });
+
+                container.appendChild(el);
+                playerElements.push(el);
+
+                // 非守门员才创建技能按钮
+                if (data.role !== 'goalkeeper') {
+                    createSkillButtons(data, el);
+                }
+
+                return {
+                    ...data,
+                    el,
+                    speed: 0,
+                };
+            }
+
+            function createSkillButtons(data, playerEl) {
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'skill-buttons';
+                btnContainer.style.pointerEvents = 'none';
+                container.appendChild(btnContainer);
+                skillButtonContainers.push({ container: btnContainer, playerId: data.id });
+
+                const skills = [
+                    { name: '跑', cls: 'run-btn', action: 'run' },
+                    { name: '铲球', cls: 'tackle-btn', action: 'tackle' },
+                    { name: '勾球', cls: 'hook-btn', action: 'hook' },
+                ];
+
+                skills.forEach(skill => {
+                    const btn = document.createElement('button');
+                    btn.className = `skill-btn ${skill.cls}`;
+                    btn.textContent = skill.name;
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (!gameRunning) {
+                            showMessage('请先开始比赛！');
+                            return;
+                        }
+                        if (selectedPlayer !== data.id) {
+                            selectPlayer(data.id);
+                        }
+                        useSkill(data.id, skill.action);
+                    });
+                    btnContainer.appendChild(btn);
+                });
+
+                updateSkillButtonPosition(data.id);
+            }
+
+            function updateSkillButtonPosition(playerId) {
+                const p = players.find(p => p.id === playerId);
+                if (!p) return;
+                const sc = skillButtonContainers.find(s => s.playerId === playerId);
+                if (!sc) return;
+
+                const rect = p.el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                sc.container.style.left = (rect.left - containerRect.left + rect.width / 2 - 45) + 'px';
+                sc.container.style.top = (rect.top - containerRect.top - 30) + 'px';
+                sc.container.style.display = (selectedPlayer === playerId && gameRunning) ? 'flex' : 'none';
+            }
+
+            function updateAllSkillButtonPositions() {
+                players.forEach(p => updateSkillButtonPosition(p.id));
+                // 隐藏所有非选中球员的按钮
+                skillButtonContainers.forEach(sc => {
+                    if (sc.playerId !== selectedPlayer) {
+                        sc.container.style.display = 'none';
+                    } else if (gameRunning && selectedPlayer) {
+                        sc.container.style.display = 'flex';
+                    }
+                });
+            }
+
+            // ==================== 阵型 ====================
+            function updateFormation() {
+                if (isAttacking) {
+                    // 进攻阵型 — 1字型 (纵向排列)
+                    applyAttackingFormation('a');
+                    applyDefendingFormation('b');
+                } else {
+                    applyDefendingFormation('a');
+                    applyAttackingFormation('b');
+                }
+                updateAllSkillButtonPositions();
+            }
+
+            function applyAttackingFormation(team) {
+                // 1字型：球员纵向排成一线
+                const teamPlayers = players.filter(p => p.team === team && p.role !== 'goalkeeper');
+                const baseX = team === 'a' ? 350 : FIELD.x + FIELD.width - 350;
+                const spacing = (FIELD.height * 0.5) / (teamPlayers.length + 1);
+                const startY = FIELD.y + FIELD.height * 0.25;
+
+                teamPlayers.forEach((p, i) => {
+                    const targetX = baseX + (Math.random() - 0.5) * 40;
+                    const targetY = startY + spacing * (i + 1);
+                    animatePlayer(p, targetX, targetY);
+                });
+
+                // 守门员位置
+                const gk = players.find(p => p.team === team && p.role === 'goalkeeper');
+                if (gk) {
+                    const gkX = team === 'a' ? 70 : FIELD.x + FIELD.width - 70;
+                    animatePlayer(gk, gkX, FIELD.y + FIELD.height / 2);
+                }
+            }
+
+            function applyDefendingFormation(team) {
+                // 三角形防守阵型
+                const teamPlayers = players.filter(p => p.team === team && p.role !== 'goalkeeper');
+                const baseX = team === 'a' ? 200 : FIELD.x + FIELD.width - 200;
+
+                // 三角形：1前2后
+                if (teamPlayers.length >= 3) {
+                    // 前点（顶点）
+                    const frontX = baseX + (team === 'a' ? 80 : -80);
+                    animatePlayer(teamPlayers[0], frontX, FIELD.y + FIELD.height / 2);
+
+                    // 后点（底边两点）
+                    const backX = baseX + (team === 'a' ? -30 : 30);
+                    animatePlayer(teamPlayers[1], backX, FIELD.y + FIELD.height * 0.35);
+                    animatePlayer(teamPlayers[2], backX, FIELD.y + FIELD.height * 0.65);
+
+                    // 第4名球员在三角形后方
+                    if (teamPlayers[3]) {
+                        animatePlayer(teamPlayers[3], baseX + (team === 'a' ? -80 : 80), FIELD.y + FIELD.height / 2);
+                    }
+                }
+
+                // 守门员位置
+                const gk = players.find(p => p.team === team && p.role === 'goalkeeper');
+                if (gk) {
+                    const gkX = team === 'a' ? 70 : FIELD.x + FIELD.width - 70;
+                    animatePlayer(gk, gkX, FIELD.y + FIELD.height / 2);
+                }
+            }
+
+            function animatePlayer(player, targetX, targetY) {
+                const currentX = parseFloat(player.el.style.left);
+                const currentY = parseFloat(player.el.style.top);
+                const startX = currentX;
+                const startY = currentY;
+                const duration = 500;
+                const startTime = performance.now();
+
+                function step(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const ease = 1 - Math.pow(1 - progress, 3); // ease-out
+                    player.el.style.left = (startX + (targetX - startX) * ease) + 'px';
+                    player.el.style.top = (startY + (targetY - startY) * ease) + 'px';
+                    player.x = parseFloat(player.el.style.left);
+                    player.y = parseFloat(player.el.style.top);
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+
+            // ==================== 选球员 ====================
+            function selectPlayer(playerId) {
+                // 取消之前的选择
+                if (selectedPlayer) {
+                    const prev = players.find(p => p.id === selectedPlayer);
+                    if (prev) prev.el.classList.remove('selected');
+                }
+
+                selectedPlayer = playerId;
+                const player = players.find(p => p.id === playerId);
+                if (player) {
+                    player.el.classList.add('selected');
+                    // 只能选择有球权队伍的球员
+                    if (player.team !== possession) {
+                        showMessage('当前是对方球权！');
+                    }
+                }
+                updateAllSkillButtonPositions();
+            }
+
+            // ==================== 技能系统 ====================
+            function useSkill(playerId, skill) {
+                const player = players.find(p => p.id === playerId);
+                if (!player) return;
+
+                switch (skill) {
+                    case 'run':
+                        doRun(player);
+                        break;
+                    case 'tackle':
+                        doTackle(player);
+                        break;
+                    case 'hook':
+                        doHook(player);
+                        break;
+                }
+            }
+
+            function doRun(player) {
+                player.el.classList.add('running');
+                setTimeout(() => player.el.classList.remove('running'), 300);
+
+                // 向球门方向冲刺
+                const currentX = parseFloat(player.el.style.left);
+                const currentY = parseFloat(player.el.style.top);
+                const targetX = player.team === 'a' ?
+                    Math.min(FIELD.x + FIELD.width - 40, currentX + 150) :
+                    Math.max(FIELD.x + 40, currentX - 150);
+
+                // 略微随机偏移
+                const targetY = currentY + (Math.random() - 0.5) * 80;
+                const clampedY = Math.max(FIELD.y + 30, Math.min(FIELD.y + FIELD.height - 30, targetY));
+
+                animatePlayer(player, targetX, clampedY);
+
+                // 如果球员离球很近，带着球一起跑
+                const ballX = parseFloat(ball.style.left) || FIELD.x + FIELD.width / 2;
+                const ballY = parseFloat(ball.style.top) || FIELD.y + FIELD.height / 2;
+                const dist = Math.hypot(currentX - ballX, currentY - ballY);
+                if (dist < 60 && player.team === possession) {
+                    ball.style.left = (targetX + 20) + 'px';
+                    ball.style.top = clampedY + 'px';
+                    checkGoal();
+                }
+
+                showMessage(`${player.label} 冲刺！💨`);
+                updateAllSkillButtonPositions();
+            }
+
+            function doTackle(player) {
+                const currentX = parseFloat(player.el.style.left);
+                const currentY = parseFloat(player.el.style.top);
+
+                // 找最近的对方球员
+                let nearestEnemy = null;
+                let minDist = Infinity;
+                players.forEach(p => {
+                    if (p.team !== player.team && p.role !== 'goalkeeper') {
+                        const px = parseFloat(p.el.style.left);
+                        const py = parseFloat(p.el.style.top);
+                        const dist = Math.hypot(currentX - px, currentY - py);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearestEnemy = p;
+                        }
+                    }
+                });
+
+                // 向目标铲球
+                if (nearestEnemy && minDist < 200) {
+                    const tx = parseFloat(nearestEnemy.el.style.left);
+                    const ty = parseFloat(nearestEnemy.el.style.top);
+                    const midX = (currentX + tx) / 2;
+                    const midY = (currentY + ty) / 2;
+
+                    animatePlayer(player, midX, midY);
+
+                    // 概率性抢断
+                    if (Math.random() < 0.6) {
+                        possession = player.team;
+                        ball.style.left = midX + 'px';
+                        ball.style.top = midY + 'px';
+                        updatePossessionDisplay();
+                        showMessage(`${player.label} 铲球成功！⚡`);
+                    } else {
+                        showMessage(`${player.label} 铲球失败！😰`);
+                    }
+                } else {
+                    showMessage(`${player.label} 附近没有可铲球的目标！`);
+                }
+                updateAllSkillButtonPositions();
+            }
+
+            function doHook(player) {
+                const currentX = parseFloat(player.el.style.left);
+                const currentY = parseFloat(player.el.style.top);
+                const ballX = parseFloat(ball.style.left) || FIELD.x + FIELD.width / 2;
+                const ballY = parseFloat(ball.style.top) || FIELD.y + FIELD.height / 2;
+                const dist = Math.hypot(currentX - ballX, currentY - ballY);
+
+                if (dist < 250) {
+                    // 勾球：把球拉向自己
+                    const pullX = currentX + (player.team === 'a' ? 25 : -25);
+                    const pullY = currentY;
+                    ball.style.left = pullX + 'px';
+                    ball.style.top = pullY + 'px';
+                    possession = player.team;
+                    updatePossessionDisplay();
+                    showMessage(`${player.label} 勾球成功！🪝`);
+                } else {
+                    showMessage(`${player.label} 离球太远，无法勾球！`);
+                }
+                updateAllSkillButtonPositions();
+            }
+
+            // ==================== 进球检测 ====================
+            function checkGoal() {
+                const ballX = parseFloat(ball.style.left);
+                const ballY = parseFloat(ball.style.top);
+                const goalTop = FIELD.y + FIELD.height * 0.42;
+                const goalBottom = FIELD.y + FIELD.height * 0.58;
+
+                // 左边球门 (B队得分)
+                if (ballX <= 35 && ballY > goalTop && ballY < goalBottom) {
+                    scoreB++;
+                    scoreBEl.textContent = scoreB;
+                    showMessage('⚽ B队进球！');
+                    resetBall();
+                }
+
+                // 右边球门 (A队得分)
+                if (ballX >= FIELD.x + FIELD.width - 35 && ballY > goalTop && ballY < goalBottom) {
+                    scoreA++;
+                    scoreAEl.textContent = scoreA;
+                    showMessage('⚽ A队进球！');
+                    resetBall();
+                }
+            }
+
+            function resetBall() {
+                ball.style.left = (FIELD.x + FIELD.width / 2 - 8) + 'px';
+                ball.style.top = (FIELD.y + FIELD.height / 2 - 8) + 'px';
+                // 被进球方开球
+                possession = possession === 'a' ? 'b' : 'a';
+                updatePossessionDisplay();
+            }
+
+            // ==================== 消息系统 ====================
+            function showMessage(msg) {
+                messageEl.textContent = msg;
+                messageEl.style.animation = 'none';
+                messageEl.offsetHeight; // reflow
+                messageEl.style.animation = 'fadeUp 1.5s forwards';
+            }
+
+            function updatePossessionDisplay() {
+                const teamName = possession === 'a' ? 'A队 (红色)' : 'B队 (蓝色)';
+                const status = isAttacking ? '进攻' : '防守';
+                possessionEl.textContent = `⚽ 球权：${teamName} | ${status}`;
+                possessionEl.style.borderColor = possession === 'a' ? '#e74c3c' : '#3498db';
+                possessionEl.style.border = `2px solid ${possession === 'a' ? '#e74c3c' : '#3498db'}`;
+            }
+
+            // ==================== 游戏控制 ====================
+            function startGame() {
+                gameRunning = true;
+                selectedPlayer = null;
+                players.forEach(p => p.el.classList.remove('selected'));
+                resetBall();
+                possession = 'a';
+                isAttacking = true;
+                updatePossessionDisplay();
+                updateFormation();
+                showMessage('⚽ 比赛开始！');
+                updateAllSkillButtonPositions();
+            }
+
+            function resetGame() {
+                gameRunning = false;
+                scoreA = 0;
+                scoreB = 0;
+                scoreAEl.textContent = '0';
+                scoreBEl.textContent = '0';
+                selectedPlayer = null;
+                possession = 'a';
+                isAttacking = true;
+                possessionEl.textContent = '⏸️ 等待开始';
+                possessionEl.style.border = 'none';
+                players.forEach(p => p.el.classList.remove('selected'));
+                ball.style.left = (FIELD.x + FIELD.width / 2 - 8) + 'px';
+                ball.style.top = (FIELD.y + FIELD.height / 2 - 8) + 'px';
+                createPlayers();
+                updateAllSkillButtonPositions();
+                showMessage('🔄 已重置');
+            }
+
+            function switchAttackDefense() {
+                if (!gameRunning) {
+                    showMessage('请先开始比赛！');
+                    return;
+                }
+                isAttacking = !isAttacking;
+                updatePossessionDisplay();
+                updateFormation();
+                showMessage(isAttacking ? '⚔️ 切换为进攻模式' : '🛡️ 切换为防守模式');
+            }
+
+            // ==================== 事件绑定 ====================
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('reset-btn').addEventListener('click', resetGame);
+            document.getElementById('switch-btn').addEventListener('click', switchAttackDefense);
+
+            // 点击空白处取消选择
+            container.addEventListener('click', (e) => {
+                if (e.target === container || e.target.classList.contains('field-line') ||
+                    e.target.classList.contains('center-circle') || e.target.classList.contains('center-dot') ||
+                    e.target.classList.contains('penalty-area-left') || e.target.classList.contains('penalty-area-right') ||
+                    e.target.classList.contains('field-label')) {
+                    if (selectedPlayer) {
+                        const prev = players.find(p => p.id === selectedPlayer);
+                        if (prev) prev.el.classList.remove('selected');
+                        selectedPlayer = null;
+                        updateAllSkillButtonPositions();
+                    }
+                }
+            });
+
+            // 键盘控制
+            document.addEventListener('keydown', (e) => {
+                if (!gameRunning || !selectedPlayer) return;
+                const player = players.find(p => p.id === selectedPlayer);
+                if (!player || player.team !== possession) return;
+
+                const step = 20;
+                let x = parseFloat(player.el.style.left);
+                let y = parseFloat(player.el.style.top);
+
+                switch (e.key.toLowerCase()) {
+                    case 'w':
+                    case 'arrowup':
+                        y = Math.max(FIELD.y + 15, y - step);
+                        break;
+                    case 's':
+                    case 'arrowdown':
+                        y = Math.min(FIELD.y + FIELD.height - 15, y + step);
+                        break;
+                    case 'a':
+                    case 'arrowleft':
+                        x = Math.max(FIELD.x + 15, x - step);
+                        break;
+                    case 'd':
+                    case 'arrowright':
+                        x = Math.min(FIELD.x + FIELD.width - 15, x + step);
+                        break;
+                    case '1':
+                        useSkill(selectedPlayer, 'run');
+                        return;
+                    case '2':
+                        useSkill(selectedPlayer, 'tackle');
+                        return;
+                    case '3':
+                        useSkill(selectedPlayer, 'hook');
+                        return;
+                    default:
+                        return;
+                }
+
+                player.el.style.left = x + 'px';
+                player.el.style.top = y + 'px';
+                player.x = x;
+                player.y = y;
+                updateAllSkillButtonPositions();
+
+                // 带球移动
+                const ballX = parseFloat(ball.style.left);
+                const ballY = parseFloat(ball.style.top);
+                const dist = Math.hypot(x - ballX, y - ballY);
+                if (dist < 50 && player.team === possession) {
+                    ball.style.left = (x + (player.team === 'a' ? 18 : -18)) + 'px';
+                    ball.style.top = y + 'px';
+                    checkGoal();
+                }
+            });
+
+            // ==================== 初始化 ====================
+            function init() {
+                createPlayers();
+                ball.style.left = (FIELD.x + FIELD.width / 2 - 8) + 'px';
+                ball.style.top = (FIELD.y + FIELD.height / 2 - 8) + 'px';
+                updateAllSkillButtonPositions();
+            }
+
+            init();
+
+            // 窗口大小改变时更新按钮位置
+            window.addEventListener('resize', () => {
+                updateAllSkillButtonPositions();
+            });
+
+            console.log('⚽ 足球游戏已就绪！');
+            console.log('操作提示：');
+            console.log('  - 点击球员选中');
+            console.log('  - 点击球员上方的技能按钮使用技能');
+            console.log('  - 键盘 WASD 移动选中球员');
+            console.log('  - 键盘 1/2/3 使用技能（跑/铲球/勾球）');
+            console.log('  - 点击"开始比赛"开始');
+            console.log('  - 点击"切换攻防"切换进攻/防守阵型');
+        })();
+    </script>
+</body>
+</html>
