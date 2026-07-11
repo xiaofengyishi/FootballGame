@@ -2,85 +2,81 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>足球游戏 - 5v5</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html, body {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             overflow: hidden;
             background: #1a1a2e;
             font-family: 'Arial', sans-serif;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
-        }
-
-        /* 提示横屏 */
-        #rotate-hint {
-            display: none;
+            -webkit-overflow-scrolling: none;
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.92);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: #fff;
-            font-size: 18px;
-            text-align: center;
-            gap: 16px;
-        }
-        #rotate-hint .icon { font-size: 60px; animation: rotateHint 2s infinite; }
-        @keyframes rotateHint { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
-        #rotate-hint .close-hint {
-            margin-top: 20px;
-            padding: 10px 30px;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 20px;
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
         }
 
+        /* 外层包装：填满屏幕 */
+        #game-wrapper {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 竖屏时旋转整个游戏 */
+        #game-wrapper.portrait #game-container {
+            transform: rotate(90deg);
+            width: 100vh;
+            height: 100vw;
+        }
+
+        /* 游戏容器：固定横向比例 */
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
-            /* 关键：用 aspect-ratio 保持横向比例，同时限制在视口内 */
             max-width: 100vw;
             max-height: 100vh;
-            /* 以宽度为基准，高度按比例 */
             background: linear-gradient(180deg, #2d8b2d 0%, #3a9a3a 30%, #2d8b2d 60%, #3a9a3a 100%);
-            border-radius: 0;
-            box-shadow: none;
             overflow: hidden;
             border: 2px solid #fff;
-            margin: 0 auto;
+            border-radius: 0;
+            box-shadow: none;
+            /* 保持宽大于高的比例 — 用 aspect-ratio 约束 */
+            aspect-ratio: auto;
         }
 
-        @media (min-width: 768px) {
+        /* 桌面端横屏（宽>高）自然显示 */
+        @media (min-aspect-ratio: 1/1) {
+            #game-container {
+                width: 100vw;
+                height: 100vh;
+            }
+        }
+
+        /* 桌面端有足够空间时加圆角阴影 */
+        @media (min-width: 768px) and (min-aspect-ratio: 1/1) {
             #game-container {
                 border-radius: 12px;
                 box-shadow: 0 0 40px rgba(0,180,0,0.25), 0 0 80px rgba(0,0,0,0.4);
                 border-width: 3px;
+                width: 95vw;
+                height: 95vh;
+                max-width: 1200px;
+                max-height: 750px;
             }
         }
 
-        /* 球场标记 — 全部使用百分比 */
+        /* ========== 球场标记 — 百分比 ========== */
         .field-line { position: absolute; border: 1.5px solid rgba(255,255,255,0.45); }
-        .field-border {
-            top: 3%; left: 2.5%; right: 2.5%; bottom: 3%;
-            border-radius: 6px;
-        }
+        .field-border { top: 3%; left: 2.5%; right: 2.5%; bottom: 3%; border-radius: 6px; }
         .field-center {
             top: 50%; left: 2.5%; right: 2.5%;
             height: 1px; background: rgba(255,255,255,0.45);
@@ -110,29 +106,30 @@
             border: 1.5px solid rgba(255,255,255,0.45);
             border-right: none; border-radius: 6px 0 0 6px;
         }
+        /* 球门在左右两侧 */
         .goal-left {
             position: absolute;
-            top: 43%; left: 1%;
-            width: 2.2%; height: 14%;
+            top: 43%; left: 0.8%;
+            width: 2.5%; height: 14%;
             background: rgba(255,255,255,0.12);
             border: 1.5px solid rgba(255,255,255,0.55);
             border-radius: 0 5px 5px 0;
         }
         .goal-right {
             position: absolute;
-            top: 43%; right: 1%;
-            width: 2.2%; height: 14%;
+            top: 43%; right: 0.8%;
+            width: 2.5%; height: 14%;
             background: rgba(255,255,255,0.12);
             border: 1.5px solid rgba(255,255,255,0.55);
             border-radius: 5px 0 0 5px;
         }
 
-        /* 球员 */
+        /* ========== 球员 ========== */
         .player {
             position: absolute;
             width: 5.2%; aspect-ratio: 1;
             max-width: 44px; max-height: 44px;
-            min-width: 28px; min-height: 28px;
+            min-width: 26px; min-height: 26px;
             border-radius: 50%;
             cursor: pointer;
             transition: transform 0.15s, box-shadow 0.15s;
@@ -141,12 +138,12 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: clamp(8px, 1.2vw, 13px);
+            font-size: clamp(7px, 1.2vw, 13px);
             color: #fff;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
             border: 3px solid rgba(255,255,255,0.8);
         }
-        .player:hover { transform: scale(1.15); box-shadow: 0 0 20px rgba(255,255,255,0.6); z-index: 30; }
+        .player:active { transform: scale(1.15); }
         .player.team-a { background: linear-gradient(135deg, #e74c3c, #c0392b); border-color: #ff6b6b; }
         .player.team-b { background: linear-gradient(135deg, #3498db, #2980b9); border-color: #6bb5ff; }
         .player.selected {
@@ -157,8 +154,8 @@
             z-index: 25;
         }
         .player.goalkeeper {
-            width: 5.8%; max-width: 48px; max-height: 48px; min-width: 30px; min-height: 30px;
-            font-size: clamp(7px, 1vw, 11px);
+            width: 5.8%; max-width: 48px; max-height: 48px; min-width: 28px; min-height: 28px;
+            font-size: clamp(6px, 1vw, 11px);
             border-width: 4px;
         }
         .player.running { animation: runAnim 0.3s ease-in-out; }
@@ -173,7 +170,7 @@
             100% { transform: scale(1); }
         }
 
-        /* 技能按钮容器 */
+        /* ========== 技能按钮 ========== */
         .skill-buttons {
             position: absolute;
             display: flex;
@@ -200,14 +197,13 @@
         .skill-btn.tackle-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .skill-btn.hook-btn { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
 
-        /* HUD */
+        /* ========== HUD ========== */
         #hud {
             position: absolute;
-            top: 1.5%;
-            left: 50%;
+            top: 1.5%; left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 20px;
+            gap: 16px;
             z-index: 50;
         }
         .score {
@@ -215,17 +211,17 @@
             color: #fff;
             padding: 5px 14px;
             border-radius: 16px;
-            font-size: clamp(14px, 2vw, 22px);
+            font-size: clamp(13px, 2vw, 22px);
             font-weight: bold;
             letter-spacing: 1px;
+            white-space: nowrap;
         }
         .team-a-score { border: 2px solid #e74c3c; }
         .team-b-score { border: 2px solid #3498db; }
 
         #controls {
             position: absolute;
-            bottom: 2%;
-            left: 50%;
+            bottom: 2%; left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 8px;
@@ -234,8 +230,8 @@
             justify-content: center;
         }
         .control-btn {
-            padding: 8px 16px;
-            font-size: clamp(11px, 1.4vw, 15px);
+            padding: 7px 14px;
+            font-size: clamp(10px, 1.4vw, 15px);
             font-weight: bold;
             border: none;
             border-radius: 22px;
@@ -253,20 +249,19 @@
 
         #possession-indicator {
             position: absolute;
-            top: 10%;
-            left: 50%;
+            top: 10%; left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.7);
             color: #fff;
-            padding: 4px 14px;
+            padding: 4px 12px;
             border-radius: 14px;
-            font-size: clamp(10px, 1.3vw, 14px);
+            font-size: clamp(9px, 1.3vw, 14px);
             z-index: 50;
             letter-spacing: 1px;
             white-space: nowrap;
         }
 
-        /* 足球 */
+        /* ========== 足球 ========== */
         #ball {
             position: absolute;
             width: 2.2%; aspect-ratio: 1;
@@ -279,12 +274,12 @@
             transition: left 0.4s ease-out, top 0.4s ease-out;
         }
 
-        /* 消息 */
+        /* ========== 消息 ========== */
         #message {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%,-50%);
-            font-size: clamp(20px, 4vw, 36px);
+            font-size: clamp(18px, 4vw, 36px);
             font-weight: bold;
             color: #fff;
             text-shadow: 0 0 20px rgba(0,0,0,0.8);
@@ -307,71 +302,93 @@
     </style>
 </head>
 <body>
-    <div id="rotate-hint">
-        <div class="icon">📱</div>
-        <div>请旋转手机至横屏模式</div>
-        <div style="font-size:14px;opacity:0.6;">以获得最佳游戏体验</div>
-        <button class="close-hint" onclick="document.getElementById('rotate-hint').style.display='none'">继续竖屏游玩</button>
-    </div>
+    <div id="game-wrapper">
+        <div id="game-container">
+            <!-- 球场 -->
+            <div class="field-line field-border"></div>
+            <div class="field-line field-center"></div>
+            <div class="center-circle"></div>
+            <div class="center-dot"></div>
+            <div class="penalty-area-left"></div>
+            <div class="penalty-area-right"></div>
+            <div class="goal-left"></div>
+            <div class="goal-right"></div>
+            <div class="field-label" style="top:12%;left:50%;transform:translateX(-50%) rotate(180deg);">⚽</div>
+            <div class="field-label" style="bottom:12%;left:50%;transform:translateX(-50%);">⚽</div>
 
-    <div id="game-container">
-        <!-- 球场 -->
-        <div class="field-line field-border"></div>
-        <div class="field-line field-center"></div>
-        <div class="center-circle"></div>
-        <div class="center-dot"></div>
-        <div class="penalty-area-left"></div>
-        <div class="penalty-area-right"></div>
-        <div class="goal-left"></div>
-        <div class="goal-right"></div>
-        <div class="field-label" style="top:12%;left:50%;transform:translateX(-50%) rotate(180deg);">⚽</div>
-        <div class="field-label" style="bottom:12%;left:50%;transform:translateX(-50%);">⚽</div>
+            <!-- 足球 -->
+            <div id="ball"></div>
 
-        <!-- 足球 -->
-        <div id="ball"></div>
+            <!-- HUD -->
+            <div id="hud">
+                <div class="score team-a-score">🔴 <span id="score-a">0</span></div>
+                <div style="color:#fff;font-size:clamp(14px,2vw,22px);line-height:2;">VS</div>
+                <div class="score team-b-score">🔵 <span id="score-b">0</span></div>
+            </div>
 
-        <!-- HUD -->
-        <div id="hud">
-            <div class="score team-a-score">🔴 <span id="score-a">0</span></div>
-            <div style="color:#fff;font-size:clamp(14px,2vw,22px);line-height:2;">VS</div>
-            <div class="score team-b-score">🔵 <span id="score-b">0</span></div>
+            <div id="possession-indicator">⏸️ 等待开始</div>
+
+            <!-- 控制按钮 -->
+            <div id="controls">
+                <button class="control-btn" id="start-btn">▶ 开始</button>
+                <button class="control-btn" id="switch-btn">🔄 攻防</button>
+                <button class="control-btn" id="reset-btn">🔄 重置</button>
+            </div>
+
+            <div id="message"></div>
         </div>
-
-        <div id="possession-indicator">⏸️ 等待开始</div>
-
-        <!-- 控制按钮 -->
-        <div id="controls">
-            <button class="control-btn" id="start-btn">▶ 开始</button>
-            <button class="control-btn" id="switch-btn">🔄 攻防</button>
-            <button class="control-btn" id="reset-btn">🔄 重置</button>
-        </div>
-
-        <div id="message"></div>
     </div>
 
     <script>
         (function() {
+            const wrapper = document.getElementById('game-wrapper');
             const container = document.getElementById('game-container');
             const ball = document.getElementById('ball');
             const scoreAEl = document.getElementById('score-a');
             const scoreBEl = document.getElementById('score-b');
             const possessionEl = document.getElementById('possession-indicator');
             const messageEl = document.getElementById('message');
-            const rotateHint = document.getElementById('rotate-hint');
 
-            // ==================== 动态 FIELD 计算 ====================
-            function getField() {
+            // ==================== 屏幕适配 ====================
+            // 核心：检测竖屏 → 旋转游戏容器90度
+            let isPortrait = false;
+
+            function updateLayout() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                isPortrait = h > w;
+
+                if (isPortrait) {
+                    // 竖屏：旋转容器，让宽高互换
+                    wrapper.classList.add('portrait');
+                } else {
+                    wrapper.classList.remove('portrait');
+                }
+
+                // 重新计算所有元素位置
+                repositionAllElements();
+                updateAllSkillButtonPositions();
+            }
+
+            // 获取游戏容器的实际渲染尺寸（考虑旋转）
+            function getContainerSize() {
                 const rect = container.getBoundingClientRect();
                 return {
-                    x: rect.width * 0.025,
-                    y: rect.height * 0.03,
-                    width: rect.width * 0.95,
-                    height: rect.height * 0.94
+                    width: rect.width,
+                    height: rect.height
                 };
             }
 
-            function pctX(px) { return (px / getField().width * 95).toFixed(2); }
-            function pctY(px) { return (px / getField().height * 94).toFixed(2); }
+            // ==================== 动态 FIELD 计算 ====================
+            function getField() {
+                const sz = getContainerSize();
+                return {
+                    x: sz.width * 0.025,
+                    y: sz.height * 0.03,
+                    width: sz.width * 0.95,
+                    height: sz.height * 0.94
+                };
+            }
 
             let gameRunning = false;
             let scoreA = 0;
@@ -382,86 +399,104 @@
             let players = [];
             let playerElements = [];
             let skillButtonContainers = [];
+            let ballXpct = 50;
+            let ballYpct = 50;
 
-            // ==================== 旋转检测（兼容微信浏览器） ====================
-            // 微信浏览器中 orientationchange/resize 可能不触发或延迟很大
-            // 使用 matchMedia + 轮询双重保障
+            // ==================== 监听屏幕变化 ====================
             const landscapeQuery = window.matchMedia('(orientation: landscape)');
 
-            function checkOrientation() {
-                // 微信浏览器最可靠的方式：比较 window.innerWidth 和 window.innerHeight
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                const isPortrait = h > w;
-                // 在竖屏时显示提示
-                rotateHint.style.display = isPortrait ? 'flex' : 'none';
+            function onOrientationChange() {
+                setTimeout(updateLayout, 300);
             }
 
-            // matchMedia 监听（微信新版支持）
             if (landscapeQuery.addEventListener) {
-                landscapeQuery.addEventListener('change', () => {
-                    setTimeout(() => {
-                        checkOrientation();
-                        repositionAllPlayers();
-                        updateAllSkillButtonPositions();
-                    }, 300);
-                });
+                landscapeQuery.addEventListener('change', onOrientationChange);
             } else if (landscapeQuery.addListener) {
-                // 微信旧版兼容
-                landscapeQuery.addListener(() => {
-                    setTimeout(() => {
-                        checkOrientation();
-                        repositionAllPlayers();
-                        updateAllSkillButtonPositions();
-                    }, 300);
-                });
+                landscapeQuery.addListener(onOrientationChange);
             }
 
-            // resize 兜底
             let resizeTimer;
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(() => {
-                    checkOrientation();
-                    repositionAllPlayers();
-                    updateAllSkillButtonPositions();
-                }, 200);
+                resizeTimer = setTimeout(updateLayout, 200);
             });
-
-            // orientationchange 兜底
             window.addEventListener('orientationchange', () => {
-                setTimeout(() => {
-                    checkOrientation();
-                    repositionAllPlayers();
-                    updateAllSkillButtonPositions();
-                }, 500);
+                setTimeout(updateLayout, 500);
             });
 
-            // 轮询兜底：每300ms检测一次（微信有时所有事件都不触发）
+            // 轮询兜底（微信关键保障）
             let lastW = window.innerWidth;
             let lastH = window.innerHeight;
             setInterval(() => {
                 const w = window.innerWidth;
                 const h = window.innerHeight;
                 if (w !== lastW || h !== lastH) {
-                    lastW = w;
-                    lastH = h;
-                    checkOrientation();
-                    repositionAllPlayers();
-                    updateAllSkillButtonPositions();
+                    lastW = w; lastH = h;
+                    updateLayout();
                 }
             }, 300);
 
-            checkOrientation();
+            // ==================== 坐标转换 ====================
+            function pctToPixel(xPct, yPct) {
+                const f = getField();
+                return {
+                    x: f.x + (xPct / 100) * f.width,
+                    y: f.y + (yPct / 100) * f.height
+                };
+            }
 
-            // ==================== 球员数据（使用百分比位置） ====================
+            function pixelToPct(px, py) {
+                const f = getField();
+                return {
+                    xPct: ((px - f.x) / f.width) * 100,
+                    yPct: ((py - f.y) / f.height) * 100
+                };
+            }
+
+            function setPlayerPosition(player, xPct, yPct) {
+                player.xPct = xPct;
+                player.yPct = yPct;
+                const pos = pctToPixel(xPct, yPct);
+                player.el.style.left = pos.x + 'px';
+                player.el.style.top = pos.y + 'px';
+                player.x = pos.x;
+                player.y = pos.y;
+            }
+
+            function setBallPosition(xPct, yPct) {
+                ballXpct = xPct;
+                ballYpct = yPct;
+                const pos = pctToPixel(xPct, yPct);
+                ball.style.left = pos.x + 'px';
+                ball.style.top = pos.y + 'px';
+            }
+
+            function getBallPct() {
+                const f = getField();
+                const bx = parseFloat(ball.style.left) || f.x + f.width / 2;
+                const by = parseFloat(ball.style.top) || f.y + f.height / 2;
+                return pixelToPct(bx, by);
+            }
+
+            function repositionAllElements() {
+                players.forEach(p => {
+                    const pos = pctToPixel(p.xPct, p.yPct);
+                    p.el.style.left = pos.x + 'px';
+                    p.el.style.top = pos.y + 'px';
+                    p.x = pos.x;
+                    p.y = pos.y;
+                });
+                const bp = pctToPixel(ballXpct, ballYpct);
+                ball.style.left = bp.x + 'px';
+                ball.style.top = bp.y + 'px';
+            }
+
+            // ==================== 创建球员 ====================
             function createPlayers() {
                 players = [];
                 document.querySelectorAll('.player, .skill-buttons').forEach(el => el.remove());
                 playerElements = [];
                 skillButtonContainers = [];
-
-                const f = getField();
 
                 // A队 (左侧，红色) — 守门员 + 4名球员
                 const teamAData = [
@@ -496,94 +531,27 @@
                 el.textContent = data.label;
                 el.title = data.label;
 
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    selectPlayer(data.id);
-                });
-                el.addEventListener('touchend', (e) => {
+                const clickHandler = (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     selectPlayer(data.id);
-                });
+                };
+                el.addEventListener('click', clickHandler);
+                el.addEventListener('touchend', clickHandler);
 
                 container.appendChild(el);
                 playerElements.push(el);
 
                 if (data.role !== 'goalkeeper') {
-                    createSkillButtons(data, el);
+                    createSkillButtons(data);
                 }
 
-                const p = {
-                    ...data,
-                    el,
-                    speed: 0,
-                    xPct: data.xPct,
-                    yPct: data.yPct
-                };
-                // 设置初始像素位置
+                const p = { ...data, el, speed: 0, xPct: data.xPct, yPct: data.yPct };
                 setPlayerPosition(p, data.xPct, data.yPct);
                 return p;
             }
 
-            function pctToPixel(xPct, yPct) {
-                const f = getField();
-                return {
-                    x: f.x + (xPct / 100) * f.width,
-                    y: f.y + (yPct / 100) * f.height
-                };
-            }
-
-            function setPlayerPosition(player, xPct, yPct) {
-                player.xPct = xPct;
-                player.yPct = yPct;
-                const pos = pctToPixel(xPct, yPct);
-                player.el.style.left = pos.x + 'px';
-                player.el.style.top = pos.y + 'px';
-                player.x = pos.x;
-                player.y = pos.y;
-            }
-
-            function pixelToPct(px, py) {
-                const f = getField();
-                return {
-                    xPct: ((px - f.x) / f.width) * 100,
-                    yPct: ((py - f.y) / f.height) * 100
-                };
-            }
-
-            function repositionAllPlayers() {
-                players.forEach(p => {
-                    const pos = pctToPixel(p.xPct, p.yPct);
-                    p.el.style.left = pos.x + 'px';
-                    p.el.style.top = pos.y + 'px';
-                    p.x = pos.x;
-                    p.y = pos.y;
-                });
-                // 球也用百分比
-                const bp = pctToPixel(ballXpct || 50, ballYpct || 50);
-                ball.style.left = bp.x + 'px';
-                ball.style.top = bp.y + 'px';
-            }
-
-            let ballXpct = 50;
-            let ballYpct = 50;
-
-            function setBallPosition(xPct, yPct) {
-                ballXpct = xPct;
-                ballYpct = yPct;
-                const pos = pctToPixel(xPct, yPct);
-                ball.style.left = pos.x + 'px';
-                ball.style.top = pos.y + 'px';
-            }
-
-            function getBallPct() {
-                const f = getField();
-                const bx = parseFloat(ball.style.left) || f.x + f.width / 2;
-                const by = parseFloat(ball.style.top) || f.y + f.height / 2;
-                return pixelToPct(bx, by);
-            }
-
-            function createSkillButtons(data, playerEl) {
+            function createSkillButtons(data) {
                 const btnContainer = document.createElement('div');
                 btnContainer.className = 'skill-buttons';
                 btnContainer.style.pointerEvents = 'none';
@@ -603,10 +571,7 @@
                     const handler = (e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        if (!gameRunning) {
-                            showMessage('请先开始比赛！');
-                            return;
-                        }
+                        if (!gameRunning) { showMessage('请先开始比赛！'); return; }
                         if (selectedPlayer !== data.id) selectPlayer(data.id);
                         useSkill(data.id, skill.action);
                     };
@@ -626,7 +591,8 @@
 
                 const rect = p.el.getBoundingClientRect();
                 const containerRect = container.getBoundingClientRect();
-                const btnWidth = sc.container.children.length * 40;
+                const btnCount = sc.container.children.length;
+                const btnWidth = btnCount * 38;
                 sc.container.style.left = (rect.left - containerRect.left + rect.width / 2 - btnWidth / 2) + 'px';
                 sc.container.style.top = (rect.top - containerRect.top - 28) + 'px';
                 sc.container.style.display = (selectedPlayer === playerId && gameRunning) ? 'flex' : 'none';
@@ -635,9 +601,9 @@
             function updateAllSkillButtonPositions() {
                 players.forEach(p => updateSkillButtonPosition(p.id));
                 skillButtonContainers.forEach(sc => {
-                    if (sc.playerId !== selectedPlayer) {
+                    if (sc.playerId !== selectedPlayer || !gameRunning) {
                         sc.container.style.display = 'none';
-                    } else if (gameRunning && selectedPlayer) {
+                    } else {
                         sc.container.style.display = 'flex';
                     }
                 });
@@ -656,7 +622,6 @@
             }
 
             function applyAttackingFormation(team) {
-                // 1字型：球员纵向排成一线
                 const teamPlayers = players.filter(p => p.team === team && p.role !== 'goalkeeper');
                 const baseXPct = team === 'a' ? 32 : 68;
                 const startYPct = 28;
@@ -669,38 +634,26 @@
                 });
 
                 const gk = players.find(p => p.team === team && p.role === 'goalkeeper');
-                if (gk) {
-                    const gkX = team === 'a' ? 5 : 95;
-                    animatePlayerPct(gk, gkX, 50);
-                }
+                if (gk) animatePlayerPct(gk, team === 'a' ? 5 : 95, 50);
             }
 
             function applyDefendingFormation(team) {
-                // 三角形防守阵型
                 const teamPlayers = players.filter(p => p.team === team && p.role !== 'goalkeeper');
                 const baseXPct = team === 'a' ? 18 : 82;
 
                 if (teamPlayers.length >= 3) {
-                    // 前点（顶点）
                     const frontX = baseXPct + (team === 'a' ? 10 : -10);
                     animatePlayerPct(teamPlayers[0], frontX, 50);
-
-                    // 后点（底边两点）
                     const backX = baseXPct + (team === 'a' ? -4 : 4);
                     animatePlayerPct(teamPlayers[1], backX, 35);
                     animatePlayerPct(teamPlayers[2], backX, 65);
-
-                    // 第4名球员在三角形后方
                     if (teamPlayers[3]) {
                         animatePlayerPct(teamPlayers[3], baseXPct + (team === 'a' ? -10 : 10), 50);
                     }
                 }
 
                 const gk = players.find(p => p.team === team && p.role === 'goalkeeper');
-                if (gk) {
-                    const gkX = team === 'a' ? 5 : 95;
-                    animatePlayerPct(gk, gkX, 50);
-                }
+                if (gk) animatePlayerPct(gk, team === 'a' ? 5 : 95, 50);
             }
 
             function animatePlayerPct(player, targetXPct, targetYPct) {
@@ -772,7 +725,7 @@
                     setBallPosition(targetXPct + (player.team === 'a' ? 2 : -2), clampedY);
                     checkGoal();
                 }
-                showMessage(`${player.label} 冲刺！💨`);
+                showMessage(`${player.label} 冲刺！`);
                 updateAllSkillButtonPositions();
             }
 
@@ -795,12 +748,12 @@
                         possession = player.team;
                         setBallPosition(midX, midY);
                         updatePossessionDisplay();
-                        showMessage(`${player.label} 铲球成功！⚡`);
+                        showMessage(`${player.label} 铲球成功！`);
                     } else {
-                        showMessage(`${player.label} 铲球失败！😰`);
+                        showMessage(`${player.label} 铲球失败！`);
                     }
                 } else {
-                    showMessage(`${player.label} 附近没有可铲球的目标！`);
+                    showMessage(`${player.label} 附近无目标！`);
                 }
                 updateAllSkillButtonPositions();
             }
@@ -814,9 +767,9 @@
                     setBallPosition(pullX, player.yPct);
                     possession = player.team;
                     updatePossessionDisplay();
-                    showMessage(`${player.label} 勾球成功！🪝`);
+                    showMessage(`${player.label} 勾球成功！`);
                 } else {
-                    showMessage(`${player.label} 离球太远，无法勾球！`);
+                    showMessage(`${player.label} 离球太远！`);
                 }
                 updateAllSkillButtonPositions();
             }
@@ -825,7 +778,7 @@
             function checkGoal() {
                 const bp = getBallPct();
 
-                // 左边球门 (B队得分): 球门在 x≈1%~3.2%, y≈43%~57%
+                // 左球门 (B队得分): x≈1%~3.3%, y≈43%~57%
                 if (bp.xPct <= 3.5 && bp.yPct > 42 && bp.yPct < 58) {
                     scoreB++;
                     scoreBEl.textContent = scoreB;
@@ -833,7 +786,7 @@
                     resetBall();
                 }
 
-                // 右边球门 (A队得分): 球门在 x≈96.8%~99%, y≈43%~57%
+                // 右球门 (A队得分): x≈96.7%~99%, y≈43%~57%
                 if (bp.xPct >= 96.5 && bp.yPct > 42 && bp.yPct < 58) {
                     scoreA++;
                     scoreAEl.textContent = scoreA;
@@ -857,7 +810,7 @@
             }
 
             function updatePossessionDisplay() {
-                const teamName = possession === 'a' ? 'A队 (红)' : 'B队 (蓝)';
+                const teamName = possession === 'a' ? 'A队(红)' : 'B队(蓝)';
                 const status = isAttacking ? '进攻' : '防守';
                 possessionEl.textContent = `⚽ ${teamName} | ${status}`;
                 possessionEl.style.border = `2px solid ${possession === 'a' ? '#e74c3c' : '#3498db'}`;
@@ -880,8 +833,7 @@
             function resetGame() {
                 gameRunning = false;
                 scoreA = 0; scoreB = 0;
-                scoreAEl.textContent = '0';
-                scoreBEl.textContent = '0';
+                scoreAEl.textContent = '0'; scoreBEl.textContent = '0';
                 selectedPlayer = null;
                 possession = 'a';
                 isAttacking = true;
@@ -891,7 +843,7 @@
                 setBallPosition(50, 50);
                 createPlayers();
                 updateAllSkillButtonPositions();
-                showMessage('🔄 已重置');
+                showMessage('已重置');
             }
 
             function switchAttackDefense() {
@@ -903,13 +855,18 @@
             }
 
             // ==================== 事件绑定 ====================
-            document.getElementById('start-btn').addEventListener('click', startGame);
-            document.getElementById('start-btn').addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
-            document.getElementById('reset-btn').addEventListener('click', resetGame);
-            document.getElementById('reset-btn').addEventListener('touchend', (e) => { e.preventDefault(); resetGame(); });
-            document.getElementById('switch-btn').addEventListener('click', switchAttackDefense);
-            document.getElementById('switch-btn').addEventListener('touchend', (e) => { e.preventDefault(); switchAttackDefense(); });
+            const btnEvents = [
+                { id: 'start-btn', fn: startGame },
+                { id: 'reset-btn', fn: resetGame },
+                { id: 'switch-btn', fn: switchAttackDefense },
+            ];
+            btnEvents.forEach(({ id, fn }) => {
+                const el = document.getElementById(id);
+                el.addEventListener('click', fn);
+                el.addEventListener('touchend', (e) => { e.preventDefault(); fn(); });
+            });
 
+            // 点击空白取消选择
             container.addEventListener('click', (e) => {
                 if (e.target === container || e.target.classList.contains('field-line') ||
                     e.target.classList.contains('center-circle') || e.target.classList.contains('center-dot') ||
@@ -935,14 +892,10 @@
                 let yPct = player.yPct;
 
                 switch (e.key.toLowerCase()) {
-                    case 'w': case 'arrowup':
-                        yPct = Math.max(5, yPct - stepPct); break;
-                    case 's': case 'arrowdown':
-                        yPct = Math.min(95, yPct + stepPct); break;
-                    case 'a': case 'arrowleft':
-                        xPct = Math.max(3, xPct - stepPct); break;
-                    case 'd': case 'arrowright':
-                        xPct = Math.min(97, xPct + stepPct); break;
+                    case 'w': case 'arrowup': yPct = Math.max(5, yPct - stepPct); break;
+                    case 's': case 'arrowdown': yPct = Math.min(95, yPct + stepPct); break;
+                    case 'a': case 'arrowleft': xPct = Math.max(3, xPct - stepPct); break;
+                    case 'd': case 'arrowright': xPct = Math.min(97, xPct + stepPct); break;
                     case '1': useSkill(selectedPlayer, 'run'); return;
                     case '2': useSkill(selectedPlayer, 'tackle'); return;
                     case '3': useSkill(selectedPlayer, 'hook'); return;
@@ -964,13 +917,11 @@
             function init() {
                 createPlayers();
                 setBallPosition(50, 50);
-                updateAllSkillButtonPositions();
+                updateLayout();
             }
 
             init();
-
             console.log('⚽ 足球游戏已就绪！');
-            console.log('操作：点击球员 → 点技能按钮 | WASD移动 | 1/2/3释放技能');
         })();
     </script>
 </body>
