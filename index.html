@@ -27,7 +27,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.92);
             z-index: 9999;
             justify-content: center;
             align-items: center;
@@ -39,6 +39,17 @@
         }
         #rotate-hint .icon { font-size: 60px; animation: rotateHint 2s infinite; }
         @keyframes rotateHint { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+        #rotate-hint .close-hint {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         #game-container {
             position: relative;
@@ -300,6 +311,7 @@
         <div class="icon">📱</div>
         <div>请旋转手机至横屏模式</div>
         <div style="font-size:14px;opacity:0.6;">以获得最佳游戏体验</div>
+        <button class="close-hint" onclick="document.getElementById('rotate-hint').style.display='none'">继续竖屏游玩</button>
     </div>
 
     <div id="game-container">
@@ -371,25 +383,75 @@
             let playerElements = [];
             let skillButtonContainers = [];
 
-            // ==================== 旋转检测 ====================
+            // ==================== 旋转检测（兼容微信浏览器） ====================
+            // 微信浏览器中 orientationchange/resize 可能不触发或延迟很大
+            // 使用 matchMedia + 轮询双重保障
+            const landscapeQuery = window.matchMedia('(orientation: landscape)');
+
             function checkOrientation() {
-                const isPortrait = window.innerHeight > window.innerWidth;
-                // 在竖屏且宽度较小时显示提示（但游戏仍然可用）
-                rotateHint.style.display = (isPortrait && window.innerWidth < 500) ? 'flex' : 'none';
+                // 微信浏览器最可靠的方式：比较 window.innerWidth 和 window.innerHeight
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                const isPortrait = h > w;
+                // 在竖屏时显示提示
+                rotateHint.style.display = isPortrait ? 'flex' : 'none';
             }
+
+            // matchMedia 监听（微信新版支持）
+            if (landscapeQuery.addEventListener) {
+                landscapeQuery.addEventListener('change', () => {
+                    setTimeout(() => {
+                        checkOrientation();
+                        repositionAllPlayers();
+                        updateAllSkillButtonPositions();
+                    }, 300);
+                });
+            } else if (landscapeQuery.addListener) {
+                // 微信旧版兼容
+                landscapeQuery.addListener(() => {
+                    setTimeout(() => {
+                        checkOrientation();
+                        repositionAllPlayers();
+                        updateAllSkillButtonPositions();
+                    }, 300);
+                });
+            }
+
+            // resize 兜底
+            let resizeTimer;
             window.addEventListener('resize', () => {
-                checkOrientation();
-                // 重新定位所有元素
-                repositionAllPlayers();
-                updateAllSkillButtonPositions();
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    checkOrientation();
+                    repositionAllPlayers();
+                    updateAllSkillButtonPositions();
+                }, 200);
             });
+
+            // orientationchange 兜底
             window.addEventListener('orientationchange', () => {
                 setTimeout(() => {
                     checkOrientation();
                     repositionAllPlayers();
                     updateAllSkillButtonPositions();
-                }, 300);
+                }, 500);
             });
+
+            // 轮询兜底：每300ms检测一次（微信有时所有事件都不触发）
+            let lastW = window.innerWidth;
+            let lastH = window.innerHeight;
+            setInterval(() => {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                if (w !== lastW || h !== lastH) {
+                    lastW = w;
+                    lastH = h;
+                    checkOrientation();
+                    repositionAllPlayers();
+                    updateAllSkillButtonPositions();
+                }
+            }, 300);
+
             checkOrientation();
 
             // ==================== 球员数据（使用百分比位置） ====================
